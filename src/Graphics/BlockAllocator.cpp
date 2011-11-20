@@ -5,43 +5,30 @@
 struct Gosu::BlockAllocator::Impl
 {
     unsigned width, height;
+    unsigned availW, availH;
 
+    typedef std::vector<unsigned> Used;
     typedef std::vector<Block> Blocks;
+    Used used; // Height table.
     Blocks blocks;
-    unsigned firstX, firstY;
-    unsigned maxW, maxH;
-    
-    void markBlockUsed(const Block& block, unsigned aWidth, unsigned aHeight)
+
+    // Rebuild the height table where b was allocated.
+    void recalcUsed(Block b)
     {
-        firstX += aWidth;
-        if (firstX + aWidth >= width)
+        std::fill_n(used.begin() + b.left, b.width, 0);
+        for (Blocks::iterator i = blocks.begin(); i != blocks.end(); ++i)
         {
-            firstX = 0;
-            firstY += aHeight;
-        }
-        blocks.push_back(block);
-    }
-
-    bool isBlockFree(const Block& block) const
-    {
-        // (The right-th column and the bottom-th row are outside of the block.)
-        unsigned right = block.left + block.width;
-        unsigned bottom = block.top + block.height;
-
-        // Block isn't valid.
-        if (right > width || bottom > height)
-            return false;
-
-        // Test if the block collides with any existing rects.
-        Blocks::const_iterator i, end = blocks.end();
-        for (i = blocks.begin(); i != end; ++i)
-            if (i->left < right && block.left < i->left + i->width &&
-                i->top < bottom && block.top < i->top + i->height)
+            if (i->left < b.left + b.width && b.left < i->left + i->width)
             {
-                return false;
-            }
+                unsigned interLeft = std::max(i->left, b.left);
+                unsigned interRight = std::min(i->left + i->width,
+                    b.left + b.width);
+                unsigned ibot = i->top + i->height;
 
-        return true;
+                for (int i = interLeft; i < interRight; i++)
+                    used[i] = std::max(used[i], ibot);
+            }
+        }
     }
 };
 
@@ -51,11 +38,11 @@ Gosu::BlockAllocator::BlockAllocator(unsigned width, unsigned height)
     pimpl->width = width;
     pimpl->height = height;
 
-    pimpl->firstX = 0;
-    pimpl->firstY = 0;
+    pimpl->availW = width;
+    pimpl->availH = height;
 
-    pimpl->maxW = width;
-    pimpl->maxH = height;
+    Impl::Used::iterator begin = pimpl->used.begin();
+    pimpl->used.insert(begin, width, 0);
 }
 
 Gosu::BlockAllocator::~BlockAllocator()
@@ -74,48 +61,53 @@ unsigned Gosu::BlockAllocator::height() const
 
 bool Gosu::BlockAllocator::alloc(unsigned aWidth, unsigned aHeight, Block& b)
 {
-    // The rect wouldn't even fit onto the texture!
-    if (aWidth > width() || aHeight > height())
+    unsigned x, i;
+    unsigned bestH = height();
+    unsigned tentativeH;
+
+    if (aWidth > pimpl->availW && aHeight > pimpl->availH)
         return false;
 
-    // We know there's no space left.
-    if (aWidth > pimpl->maxW && aHeight > pimpl->maxH)
-        return false;
-    
-    // Start to look for a place next to the last returned rect. Chances are
-    // good we'll find a place there.
-    b = Block(pimpl->firstX, pimpl->firstY, aWidth, aHeight);
-    if (pimpl->isBlockFree(b))
+    // Based on Id Software's block allocator from Quake 2, released under
+    // the GPL.
+    // See: http://fabiensanglard.net/quake2/quake2_opengl_renderer.php
+    // Search for: LM_AllocBlock
+    for (x = 0; x <= pimpl->width - aWidth; x++)
     {
-        pimpl->markBlockUsed(b, aWidth, aHeight);
-        return true;
+        tentativeH = 0;
+        for (i = 0; i < aWidth; i++)
+        {
+            if (pimpl->used[x+i] >= bestH)
+                break;
+            if (pimpl->used[x+i] > tentativeH)
+                tentativeH = pimpl->used[x+i];
+        }
+        if (i == aWidth)
+        {
+            b.left = x;
+            b.top = bestH = tentativeH;
+            b.width = aWidth;
+            b.height = aHeight;
+        }
     }
 
-    // Brute force: Look for a free place on this texture.
-    unsigned& x = b.left;
-    unsigned& y = b.top;
-    for (y = 0; y <= height() - aHeight; y += 16)
-        for (x = 0; x <= width() - aWidth; x += 8)
-        {
-            if (!pimpl->isBlockFree(b))
-                continue;
-
-            // Found a nice place!
-
-            // Try to make up for the large for()-stepping.
-            while (y > 0 && pimpl->isBlockFree(Block(x, y - 1, aWidth, aHeight)))
-                --y;
-            while (x > 0 && pimpl->isBlockFree(Block(x - 1, y, aWidth, aHeight)))
-                --x;
-            
-            pimpl->markBlockUsed(b, aWidth, aHeight);
-            return true;
+    // There wasn't enough space for the bitmap.
+    if (bestH + aHeight > pimpl->height) {
+        // Remember this for later.
+        if (aWidth > pimpl->availW && aHeight > pimpl->availH) {
+            pimpl->availW = aWidth - 1;
+            pimpl->availH = aHeight - 1;
         }
+        return false;
+    }
 
-    // So there was no space for the bitmap. Remember this for later.
-    pimpl->maxW = aWidth - 1;
-    pimpl->maxH = aHeight - 1;
-    return false;
+    // We've found a valid spot.
+    for (i = 0; i < aWidth; i++)
+        pimpl->used[b.left+i] = bestH + aHeight;
+    pimpl->blocks.push_back(b);
+
+
+    return true;
 }
 
 void Gosu::BlockAllocator::block(unsigned left, unsigned top, unsigned width, unsigned height)
@@ -130,10 +122,15 @@ void Gosu::BlockAllocator::free(unsigned left, unsigned top, unsigned width, uns
     {
         if (i->left == left && i->top == top && i->width == width && i->height == height)
         {
+            Block b = *i;
             pimpl->blocks.erase(i);
-			// Be optimistic again!
-            pimpl->maxW = pimpl->width - 1;
-            pimpl->maxH = pimpl->height - 1;
+
+            // Be optimistic again!
+            pimpl->availW = pimpl->width;
+            pimpl->availH = pimpl->height;
+
+            // Look for freed-up space.
+            pimpl->recalcUsed(b);
             return;
         }
     }
