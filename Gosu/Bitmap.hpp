@@ -66,6 +66,8 @@ namespace Gosu
     void loadImageFile(Bitmap& bitmap, const std::wstring& filename);
     //! Loads any supported image into a Bitmap.
     void loadImageFile(Bitmap& bitmap, Reader input);
+    //! Loads any supported image into a Bitmap.
+    void loadImageFile(Bitmap& bitmap, const void* buf, std::size_t length);
     
     //! Saves a Bitmap to a file.
     void saveImageFile(const Bitmap& bitmap, const std::wstring& filename);

@@ -106,7 +106,28 @@ namespace
         }
         return Gosu::Win::shareComPtr(stream);
     }
-    
+
+    tr1::shared_ptr<IStream> bufToIStream(const void* buf, std::size_t length)
+    {
+        HGLOBAL buffer = ::GlobalAlloc(GMEM_MOVEABLE, length);
+        Gosu::Win::check(buffer);
+        void* bufferPtr = ::GlobalLock(buffer);
+        if (!bufferPtr)
+        {
+            ::GlobalFree(buffer);
+            Gosu::Win::throwLastError();
+        }
+        std::memcpy(bufferPtr, buf, length);
+
+        IStream* stream = NULL;
+        if (::CreateStreamOnHGlobal(buffer, TRUE, &stream) != S_OK)
+        {
+            ::GlobalFree(buffer);
+            throw runtime_error("Could not create IStream");
+        }
+        return Gosu::Win::shareComPtr(stream);
+    }
+
     CLSID& encoderFromMimeType(const wstring& mimeType)
     {
         static map<wstring, CLSID> cache;
@@ -162,6 +183,16 @@ void Gosu::loadImageFile(Gosu::Bitmap& result, Reader reader)
     requireGDIplus();
 
     tr1::shared_ptr<IStream> stream = readToIStream(reader);
+    Gdiplus::Bitmap bitmap(stream.get());
+    check(bitmap.GetLastStatus(), "loading a bitmap from memory");
+    gdiPlusToGosu(result, bitmap);
+}
+
+void Gosu::loadImageFile(Gosu::Bitmap& result, const void* data, std::size_t length)
+{
+    requireGDIplus();
+
+    tr1::shared_ptr<IStream> stream = bufToIStream(data, length);
     Gdiplus::Bitmap bitmap(stream.get());
     check(bitmap.GetLastStatus(), "loading a bitmap from memory");
     gdiPlusToGosu(result, bitmap);

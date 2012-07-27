@@ -128,6 +128,27 @@ void Gosu::loadImageFile(Bitmap& bitmap, Reader reader)
         applyColorKey(bitmap, Color::FUCHSIA);
 }
 
+void Gosu::loadImageFile(Bitmap& bitmap, const void* buf, std::size_t length)
+{
+    char signature[2];
+    signature[0] = buf[0];
+    signature[1] = buf[1];
+    
+    ObjRef<NSAutoreleasePool> pool([NSAutoreleasePool new]);
+    
+    std::size_t length = reader.resource().size() - reader.position();
+    ObjRef<NSData> buffer([[NSMutableData alloc] initWithBytesNoCopy: buf, length: length]);
+    
+    ObjRef<APPLE_IMAGE> image([[APPLE_IMAGE alloc] initWithData: buffer.get()]);
+    if (!image.get())
+        // Is this the right wording? A void* can be a mmap.
+        throw std::runtime_error("Cannot load image file from memory");
+    
+    appleImageToBitmap(image.obj(), bitmap);
+    if (signature[0] == 'B' && signature[1] == 'M')
+        applyColorKey(bitmap, Color::FUCHSIA);
+}
+
 #ifndef GOSU_IS_IPHONE
 void Gosu::saveImageFile(const Bitmap& bitmap, const std::wstring& filename)
 {

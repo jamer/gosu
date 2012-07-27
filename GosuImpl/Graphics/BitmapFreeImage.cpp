@@ -144,6 +144,15 @@ namespace Gosu
         fibToBitmap(bitmap, fib, fif);
     }
 
+    void FI(loadImageFile)(Bitmap& bitmap, const void* buf, std::size_t length)
+    {
+        FIMEMORY* fim = FreeImage_OpenMemory(buf, length);
+        FREE_IMAGE_FORMAT fif = FreeImage_GetFileTypeFromMemory(fim);
+        FIBITMAP* fib = FreeImage_LoadFromMemory(fif, fim, GOSU_FIFLAGS);
+        checkForFreeImageErrors(fib);
+        fibToBitmap(bitmap, fib, fif);
+    }
+
     void FI(saveImageFile)(const Bitmap& bitmap, const std::wstring& filename)
     {
         std::string utf8Filename = wstringToUTF8(filename);
