@@ -7,6 +7,7 @@
 #include <GosuImpl/Graphics/ClipRectStack.hpp>
 #include <GosuImpl/Graphics/DrawOp.hpp>
 #include <cassert>
+#include <cmath>
 #include <algorithm>
 #include <map>
 #include <vector>
@@ -68,8 +69,8 @@ public:
         
         double physX = std::min(left, right);
         double physY = std::min(top, bottom);
-        double physWidth = std::abs(left - right);
-        double physHeight = std::abs(top - bottom);
+        double physWidth = std::fabs(left - right);
+        double physHeight = std::fabs(top - bottom);
         
         // Adjust for OpenGL having the wrong idea of where y=0 is.
         // TODO: This should really happen *right before* setting up
