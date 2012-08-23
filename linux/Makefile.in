@@ -51,7 +51,7 @@ directories:
 	$(AR) -r ../lib/libgosu.a $(OBJS)
 
 ../lib/libgosu.so: $(OBJS)
-	$(CXX) -shared -o ../lib/libgosu.so ${LIBS} $(OBJS)
+	$(CXX) -shared -o ../lib/libgosu.so $(OBJS) $(LIBS)
 
 install: all
 	$(MKDIR) $(bindir) $(libdir) $(includedir)/Gosu
