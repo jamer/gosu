@@ -318,6 +318,20 @@ void Gosu::Window::setCaption(const std::wstring& value)
     SetWindowText(handle(), value.c_str());
 }
 
+void Gosu::Window::setIcon(const Bitmap& icon)
+{
+	// TODO
+}
+
+void Gosu::Window::setIcon(const std::wstring& filename)
+{
+/*
+    Bitmap bmp;
+    loadImageFile(bmp, filename);
+    setIcon(bmp);
+*/
+}
+
 double Gosu::Window::updateInterval() const
 {
     return pimpl->updateInterval;

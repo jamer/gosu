@@ -157,6 +157,14 @@ void Gosu::Window::setCaption(const std::wstring& caption)
 {
 }
 
+void Gosu::Window::setIcon(const Bitmap& icon)
+{
+}
+
+void Gosu::Window::setIcon(const std::wstring& filename)
+{
+}
+
 double Gosu::Window::updateInterval() const
 {
     return pimpl->interval;

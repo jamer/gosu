@@ -29,7 +29,7 @@ namespace Gosu
     {
         struct Impl;
         const std::auto_ptr<Impl> pimpl;
-	
+    
     public:
         //! Constructs a Window.
         //! \param updateInterval Interval in milliseconds between two calls
@@ -40,7 +40,14 @@ namespace Gosu
 
         std::wstring caption() const;
         void setCaption(const std::wstring& caption);
-        
+
+        //! Tells the operating system's window manager to associate an icon
+        //! with this window. Note that some systems already know which icon a
+        //! window should have. On those systems, this call has no effect.
+        void setIcon(const Bitmap& icon);
+        //! Like setIcon(Bitmap), but loads the icon from a file.
+        void setIcon(const std::wstring& filename);
+
         double updateInterval() const;
 
         //! Enters a modal loop where the Window is visible on screen and

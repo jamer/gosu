@@ -6,6 +6,7 @@
 #include <Gosu/Window.hpp>
 #include <Gosu/Audio.hpp>
 #include <Gosu/Input.hpp>
+#include <Gosu/Bitmap.hpp>
 #include <Gosu/Graphics.hpp>
 #include <Gosu/Timing.hpp>
 #include <Gosu/TR1.hpp>
@@ -341,6 +342,29 @@ void Gosu::Window::setCaption(const std::wstring& caption)
     XSetWMName(pimpl->display, pimpl->window, &titleprop);
     XFree(titleprop.value);
     XSync(pimpl->display, false);
+}
+
+void Gosu::Window::setIcon(const Bitmap& icon)
+{
+	size_t npixels = icon.width() * icon.height();
+	size_t size = 2 + npixels;
+	std::vector<uint32_t> argb_data(size);
+
+	argb_data[0] = icon.width();
+	argb_data[1] = icon.height();
+	for (size_t i = 0; i < npixels; i++)
+		argb_data[2+i] = icon.data()[i].argb();
+
+	Atom atom = XInternAtom(pimpl->display, "_NET_WM_ICON", False);
+	XChangeProperty(pimpl->display, pimpl->window, atom, XA_CARDINAL, 32,
+			PropModeReplace, (unsigned char*)argb_data.data(), size);
+}
+
+void Gosu::Window::setIcon(const std::wstring& filename)
+{
+    Bitmap bmp;
+    loadImageFile(bmp, filename);
+    setIcon(bmp);
 }
 
 namespace GosusDarkSide
